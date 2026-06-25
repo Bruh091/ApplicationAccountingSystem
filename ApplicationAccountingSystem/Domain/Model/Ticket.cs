@@ -1,7 +1,7 @@
-using ApplicationAccountingSystem.Designation;
+using ApplicationAccountingSystem.Domain.Designation;
 using System;
 
-namespace ApplicationAccountingSystem.Model
+namespace ApplicationAccountingSystem.Domain.Model
 {
     public class Ticket
 {

@@ -1,6 +1,6 @@
 using System;
-using ApplicationAccountingSystem.Designation;
-namespace ApplicationAccountingSystem.Model
+using ApplicationAccountingSystem.Domain.Designation;
+namespace ApplicationAccountingSystem.Domain.Model
 {
     public class SLAPolicy
     {

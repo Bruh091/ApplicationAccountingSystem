@@ -1,5 +1,5 @@
 using System;
-namespace ApplicationAccountingSystem.Model
+namespace ApplicationAccountingSystem.Domain.Model
 {
     public class Comment
     {

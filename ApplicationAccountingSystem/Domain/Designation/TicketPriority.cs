@@ -1,4 +1,4 @@
-namespace ApplicationAccountingSystem.Designation
+namespace ApplicationAccountingSystem.Domain.Designation
 {
     public enum TicketPriority
     {

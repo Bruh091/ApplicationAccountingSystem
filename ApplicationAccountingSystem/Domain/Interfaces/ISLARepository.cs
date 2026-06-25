@@ -1,12 +1,12 @@
 using System;
-using ApplicationAccountingSystem.Designation;
-using ApplicationAccountingSystem.Model;
+using ApplicationAccountingSystem.Domain.Designation;
+using ApplicationAccountingSystem.Domain.Model;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ApplicationAccountingSystem.Interfaces
+namespace ApplicationAccountingSystem.Domain.Interfaces
 {
     public interface ISLARepository
     {

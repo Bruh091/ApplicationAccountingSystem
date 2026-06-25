@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ApplicationAccountingSystem.Designation;
-namespace ApplicationAccountingSystem.Model
+using ApplicationAccountingSystem.Domain.Designation;
+namespace ApplicationAccountingSystem.Domain.Model
 {
     public class User
     {
