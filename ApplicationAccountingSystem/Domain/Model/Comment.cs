@@ -5,7 +5,7 @@ namespace ApplicationAccountingSystem.Domain.Model
     {
         public Guid Id { get; set; }
         public string Content { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         public bool IsInternal { get; set; } = false;
         public Guid UserId { get; set; }
         public Guid TicketId { get; set; }

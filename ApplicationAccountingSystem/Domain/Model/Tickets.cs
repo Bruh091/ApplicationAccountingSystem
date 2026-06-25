@@ -3,7 +3,7 @@ using System;
 
 namespace ApplicationAccountingSystem.Domain.Model
 {
-    public class Ticket
+    public class Tickets
 {
     public Guid Id { get; set; }
 
@@ -13,9 +13,9 @@ namespace ApplicationAccountingSystem.Domain.Model
     public TicketStatus Status { get; set; }
     public TicketPriority Priority { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-    public DateTime UpdatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     public DateTime? ResolvedAt { get; set; }
 

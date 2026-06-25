@@ -8,7 +8,7 @@ namespace ApplicationAccountingSystem.Domain.Model
         public string FilePath { get; set; }
         public long FileSize { get; set; }
         public string ContentType { get; set; }
-        public DateTime UploadedAt { get; set; }
+        public DateTime UploadedAt { get; set; } = DateTime.Now;
         public Guid TicketId { get; set; }
     }
 }
