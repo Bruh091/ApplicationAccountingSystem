@@ -4,6 +4,6 @@ namespace ApplicationAccountingSystem.Domain.Designation
     {
         Admin = 0,
         Agent = 1,
-        USer = 2
+        User = 2
     }
 }
