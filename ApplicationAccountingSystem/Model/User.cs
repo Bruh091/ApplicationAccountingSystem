@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ApplicationAccountingSystem.Designation.UserRole;
+using ApplicationAccountingSystem.Designation;
 namespace ApplicationAccountingSystem.Model
 {
     public class User

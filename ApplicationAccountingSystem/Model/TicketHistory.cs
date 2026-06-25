@@ -1,5 +1,5 @@
 using System;
-namespace ApplicationAccountingSystem.Model.TicketHistory
+namespace ApplicationAccountingSystem.Model
 {
     public class TicketHistory
     {

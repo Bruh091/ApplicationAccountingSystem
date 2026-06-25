@@ -1,5 +1,5 @@
 using System;
-namespace ApplicationAccountingSystem.Model.Attachment
+namespace ApplicationAccountingSystem.Model
 {
     public class Attachment
     {

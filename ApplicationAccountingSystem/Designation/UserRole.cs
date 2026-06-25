@@ -1,4 +1,4 @@
-namespace ApplicationAccountingSystem.Role.UserRole
+namespace ApplicationAccountingSystem.Designation
 {
     public enum UserRole
     {
