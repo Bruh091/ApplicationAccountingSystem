@@ -13,7 +13,7 @@ namespace ApplicationAccountingSystem.Domain.Model
         {
             return createAt.AddHours(ResolutionTimeInHours);
         }
-        public bool CheckViolatoin(DateTime createAt, DateTime? resolvedAt = null)
+        public bool CheckViolation(DateTime createAt, DateTime? resolvedAt = null)
         {
             var deadline = CalculateDeadline(createAt);
             var compareDate = resolvedAt ?? DateTime.UtcNow;
