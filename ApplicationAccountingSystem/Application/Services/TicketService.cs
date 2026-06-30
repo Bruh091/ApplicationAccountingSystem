@@ -93,7 +93,7 @@ namespace ApplicationAccountingSystem.Application.Services
             _ticketRepository.UpdateTicketAsync(ticket);
             return MapToDto(ticket);
         }
-        public async Task<TicketDto?> AssignTicketAsync(Guid ticketId, TicketPriority priority)
+        public async Task<TicketDto?> ChangePriorityAsync(Guid ticketId, TicketPriority priority)
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
             if (ticket == null) { return null; }

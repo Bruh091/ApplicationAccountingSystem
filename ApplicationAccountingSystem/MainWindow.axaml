@@ -2,10 +2,681 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:local="using:ApplicationAccountingSystem"
+        mc:Ignorable="d"
         x:Class="ApplicationAccountingSystem.MainWindow"
-        Title="ApplicationAccountingSystem">
-	<Grid>
-		<TextBlock Text="ok"></TextBlock>
-	</Grid>
+        Title="HelpDesk"
+        Width="1200" Height="800"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="TopBarBrush" Color="#1565C0"/>
+        <SolidColorBrush x:Key="SidebarBrush" Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="ContentBgBrush" Color="#F5F5F5"/>
+        <SolidColorBrush x:Key="CardBgBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#888888"/>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#1565C0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Background" Value="#1976D2"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#1565C0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#1565C0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover">
+            <Setter Property="Background" Value="#1A1565C0"/>
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#D32F2F"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.danger:pointerover">
+            <Setter Property="Background" Value="#D32F2F"/>
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+        <Style Selector="Button.success">
+            <Setter Property="Background" Value="#388E3C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.success:pointerover">
+            <Setter Property="Background" Value="#388E3C"/>
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+        <Style Selector="TextBox, ComboBox">
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <!-- ==================== LOGIN PANEL ==================== -->
+        <Border x:Name="LoginPanel" Background="{StaticResource ContentBgBrush}">
+            <Border Width="400"
+                    Background="{StaticResource CardBgBrush}"
+                    CornerRadius="12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="36"
+                    BoxShadow="0 4 24 #20000000">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="HelpDesk"
+                               FontSize="30" FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Foreground="#1565C0"/>
+                    <TextBlock Text="Система учёта заявок"
+                               FontSize="13"
+                               HorizontalAlignment="Center"
+                               Opacity="0.5"/>
+
+                    <TextBlock Text="Вход в систему"
+                               FontSize="15"
+                               HorizontalAlignment="Center"
+                               Margin="0,8,0,0"/>
+
+                    <TextBox x:Name="LoginUsername"
+                             PlaceholderText="Имя пользователя"/>
+                    <TextBox x:Name="LoginPassword"
+                             PlaceholderText="Пароль"
+                             PasswordChar="●"/>
+
+                    <ComboBox x:Name="LoginRoleCombo" SelectedIndex="2">
+                        <ComboBoxItem>Администратор</ComboBoxItem>
+                        <ComboBoxItem>Агент поддержки</ComboBoxItem>
+                        <ComboBoxItem>Клиент</ComboBoxItem>
+                    </ComboBox>
+
+                    <TextBlock x:Name="LoginError"
+                               Foreground="#D32F2F"
+                               FontSize="12"
+                               IsVisible="False"
+                               Text="Неверное имя пользователя или пароль"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Stretch">
+                        <Button x:Name="LoginBtn"
+                                Content="Войти"
+                                Classes="primary"
+                                HorizontalAlignment="Stretch"
+                                Click="LoginBtn_Click"/>
+                        <Button x:Name="RegisterBtn"
+                                Content="Регистрация"
+                                Classes="secondary"
+                                HorizontalAlignment="Stretch"
+                                Click="RegisterBtn_Click"/>
+                    </StackPanel>
+
+                    <!-- DB stub: здесь будет подключение к PostgreSQL через Entity Framework -->
+                    <!-- TODO: раскомментировать после настройки БД
+                    using (var db = new AppDbContext())
+                    {
+                        var user = db.Users.FirstOrDefault(u => u.Username == username);
+                        if (user != null && PasswordHasher.Verify(password, user.PasswordHash))
+                        {
+                            // успешный вход
+                        }
+                    }
+                    -->
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- ==================== MAIN WORKSPACE ==================== -->
+        <Grid x:Name="MainWorkspace" IsVisible="False">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="48"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top Bar -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource TopBarBrush}"
+                    Padding="20,0">
+                <Grid>
+                    <TextBlock Text="HelpDesk"
+                               FontSize="16" FontWeight="Bold"
+                               VerticalAlignment="Center"
+                               Foreground="White"/>
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="16"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                        <Button x:Name="ThemeToggleBtn"
+                                Content="☀️"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Foreground="White"
+                                FontSize="18"
+                                Width="36" Height="36"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Click="ThemeToggleBtn_Click"/>
+                        <TextBlock x:Name="UserInfoBar"
+                                   VerticalAlignment="Center"
+                                   Foreground="White"
+                                   Opacity="0.9"
+                                   FontSize="13"/>
+                        <Button x:Name="LogoutBtn"
+                                Content="Выйти"
+                                Background="Transparent"
+                                BorderThickness="1"
+                                BorderBrush="#66FFFFFF"
+                                Foreground="White"
+                                FontSize="13"
+                                Padding="12,4"
+                                Click="LogoutBtn_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Main Area -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Sidebar -->
+                <Border Grid.Column="0"
+                        Background="{StaticResource SidebarBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="0,0,1,0">
+                    <ListBox x:Name="NavList"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             SelectionMode="Single"
+                             SelectionChanged="NavList_SelectionChanged">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="20,14"/>
+                                <Setter Property="FontSize" Value="14"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                            </Style>
+                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                                <Setter Property="Background" Value="#201565C0"/>
+                                <Setter Property="Foreground" Value="#1565C0"/>
+                            </Style>
+                            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                                <Setter Property="Background" Value="#10000000"/>
+                            </Style>
+                        </ListBox.Styles>
+                    </ListBox>
+                </Border>
+
+                <!-- Content Area -->
+                <Border Grid.Column="1" Padding="28" Background="{StaticResource ContentBgBrush}">
+                    <Grid>
+                        <!-- ===== DASHBOARD ===== -->
+                        <ScrollViewer x:Name="DashboardPanel" IsVisible="False">
+                            <StackPanel Spacing="20">
+                                <TextBlock Text="Панель управления"
+                                           FontSize="22" FontWeight="Bold"/>
+                                <TextBlock Text="Статистика системы"
+                                           FontSize="13" Opacity="0.5"/>
+
+                                <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto"
+                                      ColumnSpacing="16" RowSpacing="16" Margin="0,8,0,0">
+                                    <Border Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 2 8 #10000000">
+                                        <StackPanel>
+                                            <TextBlock Text="Всего тикетов" FontSize="13" Opacity="0.5"/>
+                                            <TextBlock x:Name="StatTotalTickets" Text="—" FontSize="28" FontWeight="Bold" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 2 8 #10000000">
+                                        <StackPanel>
+                                            <TextBlock Text="Открыто" FontSize="13" Opacity="0.5"/>
+                                            <TextBlock x:Name="StatOpenTickets" Text="—" FontSize="28" FontWeight="Bold" Margin="0,4,0,0" Foreground="#E65100"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 2 8 #10000000">
+                                        <StackPanel>
+                                            <TextBlock Text="В работе" FontSize="13" Opacity="0.5"/>
+                                            <TextBlock x:Name="StatInProgressTickets" Text="—" FontSize="28" FontWeight="Bold" Margin="0,4,0,0" Foreground="#1565C0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="3" Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 2 8 #10000000">
+                                        <StackPanel>
+                                            <TextBlock Text="Решено" FontSize="13" Opacity="0.5"/>
+                                            <TextBlock x:Name="StatResolvedTickets" Text="—" FontSize="28" FontWeight="Bold" Margin="0,4,0,0" Foreground="#388E3C"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Second row -->
+                                    <Border Grid.Row="1" Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 2 8 #10000000">
+                                        <StackPanel>
+                                            <TextBlock Text="Ожидает ответа" FontSize="13" Opacity="0.5"/>
+                                            <TextBlock x:Name="StatWaitingTickets" Text="—" FontSize="28" FontWeight="Bold" Margin="0,4,0,0" Foreground="#F57C00"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Row="1" Grid.Column="1" Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 2 8 #10000000">
+                                        <StackPanel>
+                                            <TextBlock Text="Закрыто" FontSize="13" Opacity="0.5"/>
+                                            <TextBlock x:Name="StatClosedTickets" Text="—" FontSize="28" FontWeight="Bold" Margin="0,4,0,0" Foreground="#757575"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Border Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 2 8 #10000000" Margin="0,8,0,0">
+                                    <StackPanel Spacing="12">
+                                        <TextBlock Text="Среднее время решения" FontSize="15" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="StatAvgResolution" Text="—" FontSize="15" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- ===== CREATE TICKET ===== -->
+                        <Grid x:Name="CreateTicketPanel" IsVisible="False"
+                              ColumnDefinitions="*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                              RowSpacing="14">
+                            <TextBlock Text="Создание тикета"
+                                       FontSize="22" FontWeight="Bold"
+                                       Grid.Row="0"/>
+                            <TextBox x:Name="TicketTitle"
+                                     PlaceholderText="Тема тикета"
+                                     Grid.Row="1"/>
+                            <TextBox x:Name="TicketDescription"
+                                     PlaceholderText="Описание проблемы"
+                                     Height="120"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     Grid.Row="2"/>
+                            <ComboBox x:Name="TicketPriorityCombo" SelectedIndex="1" Grid.Row="3">
+                                <ComboBoxItem Tag="Low">Низкий</ComboBoxItem>
+                                <ComboBoxItem Tag="Medium">Средний</ComboBoxItem>
+                                <ComboBoxItem Tag="High">Высокий</ComboBoxItem>
+                                <ComboBoxItem Tag="Urgent">Критичный</ComboBoxItem>
+                            </ComboBox>
+                            <TextBlock x:Name="CreateTicketError"
+                                       Foreground="#D32F2F" FontSize="12"
+                                       IsVisible="False"
+                                       Grid.Row="4"/>
+                            <Button x:Name="CreateTicketBtn"
+                                    Content="Создать тикет"
+                                    Classes="primary"
+                                    HorizontalAlignment="Left"
+                                    Grid.Row="5"
+                                    Click="CreateTicketBtn_Click"/>
+                        </Grid>
+
+                        <!-- ===== MY TICKETS ===== -->
+                        <Grid x:Name="MyTicketsPanel" IsVisible="False"
+                              RowDefinitions="Auto,Auto,*"
+                              RowSpacing="14">
+                            <TextBlock Text="Мои тикеты"
+                                       FontSize="22" FontWeight="Bold"
+                                       Grid.Row="0"/>
+                            <TextBox x:Name="MyTicketsSearch"
+                                     PlaceholderText="Поиск по тикетам..."
+                                     Grid.Row="1"/>
+                            <ListBox x:Name="MyTicketsList"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Grid.Row="2"
+                                     SelectionChanged="MyTicketsList_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="local:TicketListItem">
+                                        <Border Padding="16" Margin="0,0,0,8"
+                                                Background="{StaticResource CardBgBrush}"
+                                                CornerRadius="8"
+                                                BoxShadow="0 1 4 #08000000">
+                                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"/>
+                                                <TextBlock Grid.Row="1" Text="{Binding Status}" FontSize="12" Opacity="0.5" Margin="0,4,0,0"/>
+                                                <Border Grid.Column="1" Grid.RowSpan="2"
+                                                        Padding="8,4" CornerRadius="4"
+                                                        Background="{Binding PriorityColor}">
+                                                    <TextBlock Text="{Binding Priority}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+
+                        <!-- ===== QUEUE ===== -->
+                        <Grid x:Name="QueuePanel" IsVisible="False"
+                              RowDefinitions="Auto,Auto,*"
+                              RowSpacing="14">
+                            <TextBlock Text="Очередь тикетов"
+                                       FontSize="22" FontWeight="Bold"
+                                       Grid.Row="0"/>
+                            <TextBlock Text="Новые и открытые тикеты, ожидающие назначения"
+                                       FontSize="13" Opacity="0.5"
+                                       Grid.Row="1"/>
+                            <ListBox x:Name="QueueList"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Grid.Row="2"
+                                     SelectionChanged="QueueList_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="local:TicketListItem">
+                                        <Border Padding="16" Margin="0,0,0,8"
+                                                Background="{StaticResource CardBgBrush}"
+                                                CornerRadius="8"
+                                                BoxShadow="0 1 4 #08000000">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12">
+                                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"/>
+                                                <TextBlock Grid.Row="1" Text="{Binding CreatorName}" FontSize="12" Opacity="0.5"/>
+                                                <TextBlock Grid.Row="2" Text="{Binding CreatedAt}" FontSize="12" Opacity="0.4"/>
+                                                <Border Grid.Column="1" Grid.RowSpan="3"
+                                                        Padding="8,4" CornerRadius="4"
+                                                        Background="{Binding PriorityColor}"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Priority}" FontSize="11" Foreground="White"/>
+                                                </Border>
+                                                <Button Grid.Column="2" Grid.RowSpan="3"
+                                                        Content="Взять" Classes="success"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding AssignCommand}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+
+                        <!-- ===== USERS ===== -->
+                        <Grid x:Name="UsersPanel" IsVisible="False"
+                              RowDefinitions="Auto,Auto,*,Auto"
+                              RowSpacing="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Управление пользователями"
+                                           FontSize="22" FontWeight="Bold"/>
+                                <ComboBox x:Name="UsersRoleFilter" Grid.Column="1" SelectedIndex="0" Width="200">
+                                    <ComboBoxItem Tag="All">Все роли</ComboBoxItem>
+                                    <ComboBoxItem Tag="Admin">Администраторы</ComboBoxItem>
+                                    <ComboBoxItem Tag="Agent">Агенты</ComboBoxItem>
+                                    <ComboBoxItem Tag="User">Клиенты</ComboBoxItem>
+                                </ComboBox>
+                            </Grid>
+
+                            <TextBlock Grid.Row="1" x:Name="UsersPageInfo" FontSize="13" Opacity="0.5"/>
+
+                            <!-- DB stub: загрузка пользователей из БД -->
+                            <!-- TODO: раскомментировать после настройки БД
+                            using (var db = new AppDbContext())
+                            {
+                                var users = db.Users.Where(u => filter == "All" || u.Role == filter).ToList();
+                                UsersItemsControl.ItemsSource = users;
+                            }
+                            -->
+
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="UsersItemsControl">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:UserListItem">
+                                            <Border Padding="20" Margin="10"
+                                                    Background="{StaticResource CardBgBrush}"
+                                                    CornerRadius="10"
+                                                    BoxShadow="0 1 4 #08000000"
+                                                    Width="180">
+                                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                                    <Border Width="56" Height="56" CornerRadius="28"
+                                                            Background="#1565C0" HorizontalAlignment="Center">
+                                                        <TextBlock Text="{Binding Initials}" FontSize="20" Foreground="White"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding FullName}" FontSize="14" FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center" TextWrapping="Wrap"
+                                                               MaxWidth="140" TextAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Role}" FontSize="12" Opacity="0.5"
+                                                               HorizontalAlignment="Center"/>
+                                                    <Button Content="Редактировать" Classes="secondary"
+                                                            HorizontalAlignment="Center" Margin="0,4,0,0"
+                                                            Command="{Binding EditCommand}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Pagination (fixed at bottom) -->
+                            <StackPanel Grid.Row="3" x:Name="UsersPaginationBar"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Center"
+                                                Spacing="6">
+                                        <Button x:Name="UsersPrevPageBtn" Content="‹"
+                                                FontSize="16" Width="36" Height="36"
+                                                Click="UsersPrevPageBtn_Click"/>
+                                        <ItemsControl x:Name="UsersPageButtons">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                        <Button x:Name="UsersNextPageBtn" Content="›"
+                                                FontSize="16" Width="36" Height="36"
+                                                Click="UsersNextPageBtn_Click"/>
+                                        <TextBox x:Name="UsersPageJump"
+                                                 Width="50" Height="36"
+                                                 PlaceholderText="№"
+                                                 FontSize="13"
+                                                 VerticalContentAlignment="Center"
+                                                 HorizontalContentAlignment="Center"/>
+                                        <Button x:Name="UsersGoPageBtn" Content="Go"
+                                                Height="36"
+                                                Click="UsersGoPageBtn_Click"/>
+                                    </StackPanel>
+                                </Grid>
+
+                        <!-- ===== SLA ===== -->
+                        <Grid x:Name="SLAPanel" IsVisible="False"
+                              RowDefinitions="Auto,Auto,Auto"
+                              RowSpacing="14">
+                            <TextBlock Text="SLA политики"
+                                       FontSize="22" FontWeight="Bold"
+                                       Grid.Row="0"/>
+                            <TextBlock Text="Настройка времени реакции и решения для каждого приоритета"
+                                       FontSize="13" Opacity="0.5"
+                                       Grid.Row="1"/>
+
+                            <ScrollViewer Grid.Row="2">
+                                <StackPanel Spacing="12">
+                                    <!-- Low -->
+                                    <Border Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 1 4 #08000000">
+                                        <Grid ColumnDefinitions="120,*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="8">
+                                            <TextBlock Text="Низкий" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Ответ:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLALowResponse" Text="24" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Решение:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLALowResolution" Text="72" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <!-- Medium -->
+                                    <Border Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 1 4 #08000000">
+                                        <Grid ColumnDefinitions="120,*,*" ColumnSpacing="16">
+                                            <TextBlock Text="Средний" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Ответ:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLAMediumResponse" Text="8" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Решение:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLAMediumResolution" Text="40" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <!-- High -->
+                                    <Border Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 1 4 #08000000">
+                                        <Grid ColumnDefinitions="120,*,*" ColumnSpacing="16">
+                                            <TextBlock Text="Высокий" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Ответ:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLAHighResponse" Text="4" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Решение:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLAHighResolution" Text="24" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <!-- Critical -->
+                                    <Border Padding="20" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 1 4 #08000000">
+                                        <Grid ColumnDefinitions="120,*,*" ColumnSpacing="16">
+                                            <TextBlock Text="Критичный" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Ответ:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLACriticalResponse" Text="1" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="Решение:" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="SLACriticalResolution" Text="8" Width="60"/>
+                                                <TextBlock Text="ч" FontSize="13" Opacity="0.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Button x:Name="SaveSLABtn" Content="Сохранить SLA" Classes="primary" HorizontalAlignment="Left"/>
+
+                                    <!-- DB stub: сохранение SLA в БД -->
+                                    <!-- TODO: раскомментировать после настройки БД
+                                    using (var db = new AppDbContext())
+                                    {
+                                        db.SLAPolicies.Update(slaPolicy);
+                                        db.SaveChanges();
+                                    }
+                                    -->
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <!-- ===== TICKET DETAIL ===== -->
+                        <Grid x:Name="TicketDetailPanel" IsVisible="False"
+                              RowDefinitions="Auto,Auto,Auto,*,Auto"
+                              RowSpacing="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock x:Name="DetailTitle"
+                                           FontSize="22" FontWeight="Bold"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="DetailBackBtn" Content="← Назад" Classes="secondary" Click="DetailBackBtn_Click"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Padding="16" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 1 4 #08000000" Grid.Row="1">
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="20" RowSpacing="4">
+                                    <TextBlock Text="Статус:" FontSize="13" Opacity="0.5"/>
+                                    <TextBlock x:Name="DetailStatus" Grid.Column="1" FontSize="13"/>
+                                    <TextBlock Grid.Row="1" Text="Приоритет:" FontSize="13" Opacity="0.5"/>
+                                    <TextBlock x:Name="DetailPriority" Grid.Row="1" Grid.Column="1" FontSize="13"/>
+                                    <TextBlock Grid.Row="2" Text="Создатель:" FontSize="13" Opacity="0.5"/>
+                                    <TextBlock x:Name="DetailCreator" Grid.Row="2" Grid.Column="1" FontSize="13"/>
+                                    <TextBlock Grid.Row="3" Text="Назначен:" FontSize="13" Opacity="0.5"/>
+                                    <TextBlock x:Name="DetailAssignee" Grid.Row="3" Grid.Column="1" FontSize="13"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Actions: change status / priority -->
+                            <Border x:Name="DetailActionsPanel" IsVisible="False"
+                                    Padding="16" Background="{StaticResource CardBgBrush}"
+                                    CornerRadius="8" BoxShadow="0 1 4 #08000000" Grid.Row="2">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="Действия" FontSize="15" FontWeight="SemiBold"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="Статус:" FontSize="13" VerticalAlignment="Center" Opacity="0.7"/>
+                                        <ComboBox x:Name="DetailStatusCombo" SelectedIndex="0" Width="200">
+                                            <ComboBoxItem Tag="New">Новый</ComboBoxItem>
+                                            <ComboBoxItem Tag="InProgress">В работе</ComboBoxItem>
+                                            <ComboBoxItem Tag="waitingForCustomer">Ожидает ответа</ComboBoxItem>
+                                            <ComboBoxItem Tag="Resolved">Решён</ComboBoxItem>
+                                            <ComboBoxItem Tag="Closed">Закрыт</ComboBoxItem>
+                                        </ComboBox>
+                                        <Button x:Name="DetailApplyStatusBtn" Content="Применить" Classes="primary" Click="DetailApplyStatusBtn_Click"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="Приоритет:" FontSize="13" VerticalAlignment="Center" Opacity="0.7"/>
+                                        <ComboBox x:Name="DetailPriorityCombo" SelectedIndex="0" Width="200">
+                                            <ComboBoxItem Tag="Low">Низкий</ComboBoxItem>
+                                            <ComboBoxItem Tag="Medium">Средний</ComboBoxItem>
+                                            <ComboBoxItem Tag="High">Высокий</ComboBoxItem>
+                                            <ComboBoxItem Tag="Urgent">Критичный</ComboBoxItem>
+                                        </ComboBox>
+                                        <Button x:Name="DetailApplyPriorityBtn" Content="Применить" Classes="primary" Click="DetailApplyPriorityBtn_Click"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <ScrollViewer Grid.Row="3">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="Описание" FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="DetailDescription" TextWrapping="Wrap" FontSize="14" Opacity="0.8"/>
+
+                                    <TextBlock Text="Комментарии" FontSize="15" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                                    <ListBox x:Name="DetailComments" BorderThickness="0" Background="Transparent">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="local:CommentListItem">
+                                                <Border Padding="12" Margin="0,0,0,8"
+                                                        Background="{StaticResource CardBgBrush}"
+                                                        CornerRadius="8" BoxShadow="0 1 4 #08000000">
+                                                    <StackPanel>
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Text="{Binding Author}" FontSize="13" FontWeight="SemiBold"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding CreatedAt}" FontSize="11" Opacity="0.4"/>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="13" Margin="0,4,0,0" Opacity="0.8"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <Border Padding="12" Background="{StaticResource CardBgBrush}" CornerRadius="8" BoxShadow="0 -1 4 #08000000" Grid.Row="4">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBox x:Name="DetailNewComment" PlaceholderText="Напишите комментарий..." AcceptsReturn="False"/>
+                                    <Button x:Name="DetailAddCommentBtn" Content="Отправить" Classes="primary" Grid.Column="1" Click="DetailAddCommentBtn_Click"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
 </Window>
