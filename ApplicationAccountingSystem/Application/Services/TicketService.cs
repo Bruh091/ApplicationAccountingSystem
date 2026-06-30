@@ -7,7 +7,7 @@ using ApplicationAccountingSystem.Application.Interface;
 using ApplicationAccountingSystem.Domain.Designation;
 using ApplicationAccountingSystem.Domain.Interfaces;
 using ApplicationAccountingSystem.Domain.Model;
-
+using ApplicationAccountingSystem.Domain.Model;
 namespace ApplicationAccountingSystem.Application.Services
 {
     public class TicketService : ITicketService
@@ -76,6 +76,30 @@ namespace ApplicationAccountingSystem.Application.Services
                 CreatedById = ticket.CreatedById,
                 AssignedToId = ticket.AssignedToId
             };
+        }
+        public async Task<TicketDto?> AssignTicketAsync(Guid ticketId, Guid agentId)
+        {
+            var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
+            if (ticket == null) { return null; }
+            ticket.AssignTo(agentId);
+            _ticketRepository.UpdateTicketAsync(ticket);
+            return MapToDto(ticket);
+        }
+        public async Task<TicketDto?> ChangeStatusAsync(Guid ticketId, TicketStatus status)
+        {
+            var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
+            if (ticket == null) { return null; }
+            ticket.ChangeStatus(status);
+            _ticketRepository.UpdateTicketAsync(ticket);
+            return MapToDto(ticket);
+        }
+        public async Task<TicketDto?> AssignTicketAsync(Guid ticketId, TicketPriority priority)
+        {
+            var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
+            if (ticket == null) { return null; }
+            ticket.ChangePriority(priority);
+            _ticketRepository.UpdateTicketAsync(ticket);
+            return MapToDto(ticket);
         }
     }
 }
