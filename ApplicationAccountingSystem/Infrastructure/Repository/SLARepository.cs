@@ -35,5 +35,26 @@ namespace ApplicationAccountingSystem.Infrastructure.Repository
         {
             return await _context.SLAPolicies.Where(x=>x.Priority == priority).FirstOrDefaultAsync();
         }
+        public async Task<IEnumerable<SLAPolicy>> GetAllSLAsAsync()
+        {
+            return await _context.SLAPolicies.ToListAsync();
+        }
+        public async Task<IEnumerable<SLAPolicy>> GetActiveSLAPoliciesAsync()
+        {
+            return await _context.SLAPolicies.Where(x=>x.IsActive==true).ToListAsync();
+        }
+        public async Task UpdateSLAAsync(SLAPolicy sla)
+        {
+            _context.SLAPolicies.Update(sla);
+            await _context.SaveChangesAsync();
+        }
+        public async Task DeleteSLAAsync(Guid slaId)
+        {
+            var sla = await _context.SLAPolicies.FindAsync(slaId);
+            if (sla == null) return;
+            _context.SLAPolicies.Remove(sla);
+            await _context.SaveChangesAsync();
+        }
+
     }
 }
