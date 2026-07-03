@@ -3,6 +3,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using System;
+using Microsoft.Extensions.DependencyInjection;
+using ApplicationAccountingSystem.Infrastructure.DependencyInjection;
 
 namespace ApplicationAccountingSystem
 {
@@ -16,6 +18,9 @@ namespace ApplicationAccountingSystem
         {
             AvaloniaXamlLoader.Load(this);
             RequestedThemeVariant = ThemeVariant.Light;
+            var services = new ServiceCollection();
+            services.AddApplicationServices();
+            Services = services.BuildServiceProvider();
         }
 
         public override void OnFrameworkInitializationCompleted()
@@ -37,5 +42,7 @@ namespace ApplicationAccountingSystem
             }
             ThemeChanged?.Invoke(null, IsLightTheme);
         }
+        public static ServiceProvider Services {get; private set;}
+
     }
 }
