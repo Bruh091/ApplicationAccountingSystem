@@ -59,8 +59,10 @@ namespace ApplicationAccountingSystem.Infrastructure.Repository
         public async Task DeleteTicketAsync(Guid ticketId)
         {
             var ticket = await _context.Tickets.FindAsync(ticketId);
+            if (ticket == null) return;
             _context.Tickets.Remove(ticket);
             await _context.SaveChangesAsync();
         }
     }
+    
 }

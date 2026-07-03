@@ -19,5 +19,6 @@ namespace ApplicationAccountingSystem.Domain.Model
             var compareDate = resolvedAt ?? DateTime.UtcNow;
             return compareDate > deadline;
         }
+
     }
 }
