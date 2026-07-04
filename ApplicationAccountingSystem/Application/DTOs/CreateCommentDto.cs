@@ -4,7 +4,7 @@ namespace ApplicationAccountingSystem.Application.DTOs
 {
     public class CreateCommentDto
     {
-        public string Content { get; set; }
+        public string Content { get; set; } = "";
 
         public bool IsInternal { get; set; }
 

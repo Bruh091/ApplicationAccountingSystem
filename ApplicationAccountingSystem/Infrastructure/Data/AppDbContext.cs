@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ApplicationAccountingSystem.Domain.Model;
+using Microsoft.Extensions.Configuration;
 
 namespace ApplicationAccountingSystem.Infrastructure.Data
 {
@@ -19,7 +20,24 @@ namespace ApplicationAccountingSystem.Infrastructure.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=helpdesk;Username=user;Password=pass");
+            if (optionsBuilder.IsConfigured)
+            {
+                return;
+            }
+
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+                .Build();
+
+            var connectionString = configuration.GetConnectionString("PostgreSQL");
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException("Connection string 'PostgreSQL' was not found.");
+            }
+
+            optionsBuilder.UseNpgsql(connectionString);
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

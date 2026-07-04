@@ -12,10 +12,12 @@ namespace ApplicationAccountingSystem.Application.Services
     public class CommentService : ICommentService
     {
         private readonly ICommentRepository _commentRepository;
+        private readonly IUserRepository _userRepository;
 
-        public CommentService(ICommentRepository commentRepository)
+        public CommentService(ICommentRepository commentRepository, IUserRepository userRepository)
         {
             _commentRepository = commentRepository;
+            _userRepository = userRepository;
         }
 
         public async Task<CommentDto> AddCommentAsync(CreateCommentDto dto)
@@ -32,21 +34,35 @@ namespace ApplicationAccountingSystem.Application.Services
 
             var createdComment = await _commentRepository.CreateCommentAsync(comment);
 
-            return MapToDto(createdComment);
+            return await MapToDtoAsync(createdComment);
         }
 
         public async Task<IEnumerable<CommentDto>> GetCommentsByTicketIdAsync(Guid ticketId)
         {
             var comments = await _commentRepository.GetCommentsByTicketIdAsync(ticketId);
 
-            return comments.Select(MapToDto);
+            var result = new List<CommentDto>();
+
+            foreach (var comment in comments)
+            {
+                result.Add(await MapToDtoAsync(comment));
+            }
+
+            return result;
         }
 
         public async Task<IEnumerable<CommentDto>> GetCommentsByUserIdAsync(Guid userId)
         {
             var comments = await _commentRepository.GetCommentsByUserIdAsync(userId);
 
-            return comments.Select(MapToDto);
+            var result = new List<CommentDto>();
+
+            foreach (var comment in comments)
+            {
+                result.Add(await MapToDtoAsync(comment));
+            }
+
+            return result;
         }
 
         public async Task DeleteCommentAsync(Guid commentId)
@@ -54,8 +70,10 @@ namespace ApplicationAccountingSystem.Application.Services
             await _commentRepository.DeleteCommentAsync(commentId);
         }
 
-        private static CommentDto MapToDto(Comment comment)
+        private async Task<CommentDto> MapToDtoAsync(Comment comment)
         {
+            var author = await _userRepository.GetUserByIdAsync(comment.UserId);
+
             return new CommentDto
             {
                 Id = comment.Id,
@@ -63,6 +81,7 @@ namespace ApplicationAccountingSystem.Application.Services
                 CreatedAt = comment.CreatedAt,
                 IsInternal = comment.IsInternal,
                 UserId = comment.UserId,
+                AuthorName = author?.FullName ?? comment.UserId.ToString(),
                 TicketId = comment.TicketId
             };
         }

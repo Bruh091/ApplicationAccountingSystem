@@ -1,10 +1,17 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Media;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using ApplicationAccountingSystem.Domain.Designation;
+using Microsoft.Extensions.DependencyInjection;
+using ApplicationAccountingSystem.Application.Interface;
+using ApplicationAccountingSystem.Application.DTOs;
+using ApplicationAccountingSystem.Domain.Model;
+using ApplicationAccountingSystem.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace ApplicationAccountingSystem
 {
@@ -12,14 +19,10 @@ namespace ApplicationAccountingSystem
     {
         // ----- session state -----
         private UserRole _currentRole;
+        private Guid _currentUserId;
         private string _currentUsername = "";
         private bool _isLightTheme = true;
         private string _lastPanel = "";
-
-        // ----- in-memory storage (stub until DB is connected) -----
-        private readonly List<InMemoryUser> _users = new();
-        private readonly List<InMemoryTicket> _tickets = new();
-        private readonly List<InMemoryComment> _comments = new();
 
         private readonly ObservableCollection<TicketListItem> _myTicketItems = new();
         private readonly ObservableCollection<TicketListItem> _queueItems = new();
@@ -49,52 +52,9 @@ namespace ApplicationAccountingSystem
         public MainWindow()
         {
             InitializeComponent();
-
-            // seed demo users
-            _users.Add(new InMemoryUser { Username = "admin", Password = "admin", FullName = "Иван Админов", Role = UserRole.Admin });
-            _users.Add(new InMemoryUser { Username = "agent", Password = "agent", FullName = "Пётр Агентов", Role = UserRole.Agent });
-            _users.Add(new InMemoryUser { Username = "user", Password = "user", FullName = "Сергей Клиентов", Role = UserRole.User });
-
-            for (int i = 1; i <= 50; i++)
-                _users.Add(new InMemoryUser { Username = $"test{i}", Password = "test", FullName = $"Тестовый {i}", Role = UserRole.User });
-
-            // seed demo tickets
-            _tickets.Add(new InMemoryTicket
-            {
-                Id = Guid.NewGuid(),
-                Title = "Не запускается приложение после обновления",
-                Description = "После обновления до версии 2.1 программа выдаёт ошибку при запуске. Ошибка: 'System.IO.FileNotFoundException'",
-                Status = TicketStatus.New,
-                Priority = TicketPriority.High,
-                CreatedAt = DateTime.Now.AddHours(-3),
-                CreatorName = "user",
-            });
-            _tickets.Add(new InMemoryTicket
-            {
-                Id = Guid.NewGuid(),
-                Title = "Сбросить пароль администратора",
-                Description = "Необходимо сбросить пароль для учётной записи администратора отдела продаж",
-                Status = TicketStatus.New,
-                Priority = TicketPriority.Medium,
-                CreatedAt = DateTime.Now.AddHours(-8),
-                CreatorName = "user",
-            });
-            _tickets.Add(new InMemoryTicket
-            {
-                Id = Guid.NewGuid(),
-                Title = "Настроить почтовый сервер",
-                Description = "SMTP-сервер не отправляет письма с уведомлениями. Нужно проверить конфигурацию.",
-                Status = TicketStatus.InProgress,
-                Priority = TicketPriority.Urgent,
-                CreatedAt = DateTime.Now.AddDays(-1),
-                CreatorName = "user",
-                AssigneeName = "agent",
-            });
-
-            // subscribe to theme changes
+            SaveSLABtn.Click += SaveSLABtn_Click;
             App.ThemeChanged += OnThemeChanged;
 
-            // recalculate user columns on resize
             this.SizeChanged += OnMainWindowSizeChanged;
         }
 
@@ -102,31 +62,49 @@ namespace ApplicationAccountingSystem
         //  LOGIN / REGISTER
         // ====================================================================
 
-        private void LoginBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        private async void LoginBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            var username = LoginUsername.Text?.Trim();
-            var password = LoginPassword.Text?.Trim();
-
-            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            try
             {
-                ShowLoginError("Заполните все поля");
-                return;
+                var username = LoginUsername.Text?.Trim();
+                var password = LoginPassword.Text?.Trim();
+
+                if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                {
+                    ShowLoginError("Заполните все поля");
+                    return;
+                }
+
+                using var scope = App.Services.CreateScope();
+                var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+                var user = await authService.LoginAsync(new LoginDto
+                {
+                    Username = username,
+                    Password = password
+                });
+
+                if (user == null)
+                {
+                    ShowLoginError("Неверное имя пользователя или пароль");
+                    return;
+                }
+
+                LoginSuccess(new CurrentUserSession
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    Username = user.Username,
+                    Role = user.Role,
+
+                });
             }
-
-            var user = _users.FirstOrDefault(u =>
-                u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
-
-            if (user != null && user.Password == password)
+            catch (Exception ex)
             {
-                LoginSuccess(user);
-            }
-            else
-            {
-                ShowLoginError("Неверное имя пользователя или пароль");
+                ShowDatabaseError(ex);
             }
         }
 
-        private void RegisterBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        private async void RegisterBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             var username = LoginUsername.Text?.Trim();
             var password = LoginPassword.Text?.Trim();
@@ -138,48 +116,55 @@ namespace ApplicationAccountingSystem
                 return;
             }
 
-            if (_users.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
-            {
-                ShowLoginError("Пользователь уже существует");
-                return;
-            }
-
-            var role = roleIndex switch
+            var selectedRole = roleIndex switch
             {
                 0 => UserRole.Admin,
                 1 => UserRole.Agent,
                 _ => UserRole.User,
             };
 
-            var newUser = new InMemoryUser
+            try
             {
-                Username = username,
-                Password = password,
-                FullName = username,
-                Role = role,
-            };
-            _users.Add(newUser);
+                using var scope = App.Services.CreateScope();
+                var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+                var registeredUser = await authService.RegisterAsync(new RegisterUserDto
+                {
+                    Username = username,
+                    Password = password,
+                    Email = $"{username}@example.com",
+                    FullName = username,
+                    Role = selectedRole
+                    
+                });
 
-            LoginSuccess(newUser);
+                LoginSuccess(new CurrentUserSession
+                {
+                    Id = registeredUser.Id,
+                    FullName = registeredUser.FullName,
+                    Username = registeredUser.Username,
+                    Role = registeredUser.Role
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                ShowLoginError(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
-        private void LoginSuccess(InMemoryUser user)
+        private void LoginSuccess(CurrentUserSession user)
         {
             _currentRole = user.Role;
             _currentUsername = user.Username;
+            _currentUserId = user.Id;
 
             LoginPanel.IsVisible = false;
             MainWorkspace.IsVisible = true;
 
             UserInfoBar.Text = $"{user.FullName} ({RoleDisplayName(user.Role)})";
-
-            // DB stub: загрузка тикетов из БД
-            // TODO: раскомментировать после настройки БД
-            // using (var db = new AppDbContext())
-            // {
-            //     var tickets = db.Tickets.Where(t => t.CreatedById == userId || t.AssignedToId == userId).ToList();
-            //     ...
-            // }
 
             PopulateNav(user.Role);
             RefreshDashboard();
@@ -233,7 +218,7 @@ namespace ApplicationAccountingSystem
             }
         }
 
-        private void ShowPanel(string tag)
+        private async void ShowPanel(string tag)
         {
             // hide all
             DashboardPanel.IsVisible = false;
@@ -257,15 +242,15 @@ namespace ApplicationAccountingSystem
                     break;
                 case "MyTickets":
                     MyTicketsPanel.IsVisible = true;
-                    RefreshMyTickets();
+                    await RefreshMyTickets();
                     break;
                 case "Queue":
                     QueuePanel.IsVisible = true;
-                    RefreshQueue();
+                    await RefreshQueue();
                     break;
                 case "Users":
                     UsersPanel.IsVisible = true;
-                    RefreshUsers();
+                    await RefreshUsers();
                     break;
                 case "SLA":
                     SLAPanel.IsVisible = true;
@@ -279,6 +264,7 @@ namespace ApplicationAccountingSystem
                     SLACriticalResponse.IsReadOnly = !isAdmin;
                     SLACriticalResolution.IsReadOnly = !isAdmin;
                     SaveSLABtn.IsVisible = isAdmin;
+                    await LoadSLAPolicies();
                     break;
             }
         }
@@ -316,103 +302,235 @@ namespace ApplicationAccountingSystem
             }
         }
 
+        private async Task LoadSLAPolicies()
+        {
+            using var scope = App.Services.CreateScope();
+            var slaRepository = scope.ServiceProvider.GetRequiredService<ISLARepository>();
+            var configuration = LoadConfiguration();
+
+            await LoadSLAPolicy(slaRepository, configuration, TicketPriority.Low, "Low", SLALowResponse, SLALowResolution);
+            await LoadSLAPolicy(slaRepository, configuration, TicketPriority.Medium, "Medium", SLAMediumResponse, SLAMediumResolution);
+            await LoadSLAPolicy(slaRepository, configuration, TicketPriority.High, "High", SLAHighResponse, SLAHighResolution);
+            await LoadSLAPolicy(slaRepository, configuration, TicketPriority.Urgent, "Critical", SLACriticalResponse, SLACriticalResolution);
+        }
+
+        private static async Task LoadSLAPolicy(ISLARepository slaRepository, IConfiguration configuration, TicketPriority priority, string configPrefix, TextBox responseBox, TextBox resolutionBox)
+        {
+            var policy = await slaRepository.GetSLAPolicyByPriorityAsync(priority);
+
+            if (policy == null)
+            {
+                var responseHours = configuration.GetValue<int>($"SLA:{configPrefix}ResponseHours");
+                var resolutionHours = configuration.GetValue<int>($"SLA:{configPrefix}ResolutionHours");
+
+                if (responseHours <= 0 || resolutionHours <= 0)
+                {
+                    return;
+                }
+
+                policy = await slaRepository.CreateSLAAsync(new SLAPolicy
+                {
+                    Id = Guid.NewGuid(),
+                    Priority = priority,
+                    ResponseTimeInHours = responseHours,
+                    ResolutionTimeInHours = resolutionHours,
+                    IsActive = true
+                });
+            }
+
+            responseBox.Text = policy.ResponseTimeInHours.ToString();
+            resolutionBox.Text = policy.ResolutionTimeInHours.ToString();
+        }
+
+        private static IConfigurationRoot LoadConfiguration()
+        {
+            return new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+                .Build();
+        }
+
+        private async void SaveSLABtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            try
+            {
+                if (!TryReadSLAValues(SLALowResponse, SLALowResolution, out var lowResponse, out var lowResolution)) return;
+                if (!TryReadSLAValues(SLAMediumResponse, SLAMediumResolution, out var mediumResponse, out var mediumResolution)) return;
+                if (!TryReadSLAValues(SLAHighResponse, SLAHighResolution, out var highResponse, out var highResolution)) return;
+                if (!TryReadSLAValues(SLACriticalResponse, SLACriticalResolution, out var urgentResponse, out var urgentResolution)) return;
+
+                using var scope = App.Services.CreateScope();
+                var slaRepository = scope.ServiceProvider.GetRequiredService<ISLARepository>();
+
+                await SaveSLAPolicy(slaRepository, TicketPriority.Low, lowResponse, lowResolution);
+                await SaveSLAPolicy(slaRepository, TicketPriority.Medium, mediumResponse, mediumResolution);
+                await SaveSLAPolicy(slaRepository, TicketPriority.High, highResponse, highResolution);
+                await SaveSLAPolicy(slaRepository, TicketPriority.Urgent, urgentResponse, urgentResolution);
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
+        }
+
+        private static bool TryReadSLAValues(TextBox responseBox, TextBox resolutionBox, out int responseHours, out int resolutionHours)
+        {
+            var hasResponse = int.TryParse(responseBox.Text?.Trim(), out responseHours);
+            var hasResolution = int.TryParse(resolutionBox.Text?.Trim(), out resolutionHours);
+
+            return hasResponse && hasResolution && responseHours > 0 && resolutionHours > 0;
+        }
+
+        private static async Task SaveSLAPolicy(ISLARepository slaRepository, TicketPriority priority, int responseHours, int resolutionHours)
+        {
+            var policy = await slaRepository.GetSLAPolicyByPriorityAsync(priority);
+
+            if (policy == null)
+            {
+                await slaRepository.CreateSLAAsync(new SLAPolicy
+                {
+                    Id = Guid.NewGuid(),
+                    Priority = priority,
+                    ResponseTimeInHours = responseHours,
+                    ResolutionTimeInHours = resolutionHours,
+                    IsActive = true
+                });
+                return;
+            }
+
+            policy.ResponseTimeInHours = responseHours;
+            policy.ResolutionTimeInHours = resolutionHours;
+            policy.IsActive = true;
+            await slaRepository.UpdateSLAAsync(policy);
+        }
+
         // ====================================================================
         //  DASHBOARD
         // ====================================================================
 
-        private void RefreshDashboard()
+        private async void RefreshDashboard()
         {
-            var openCount = _tickets.Count(t => t.Status == TicketStatus.New);
-            var inProgressCount = _tickets.Count(t => t.Status == TicketStatus.InProgress);
-            var waitCount = _tickets.Count(t => t.Status == TicketStatus.waitingForCustomer);
-            var resolvedCount = _tickets.Count(t => t.Status == TicketStatus.Resolved);
-            var closedCount = _tickets.Count(t => t.Status == TicketStatus.Closed);
+            try
+            {
+                using var scope = App.Services.CreateScope();
+                var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                var tickets = await ticketService.GetAllTicketsAsync();
+                var ticketList = tickets.ToList();
 
-            StatTotalTickets.Text = _tickets.Count.ToString();
-            StatOpenTickets.Text = openCount.ToString();
-            StatInProgressTickets.Text = inProgressCount.ToString();
-            StatWaitingTickets.Text = waitCount.ToString();
-            StatResolvedTickets.Text = resolvedCount.ToString();
-            StatClosedTickets.Text = closedCount.ToString();
+                var openCount = ticketList.Count(t => t.Status == TicketStatus.New);
+                var inProgressCount = ticketList.Count(t => t.Status == TicketStatus.InProgress);
+                var waitCount = ticketList.Count(t => t.Status == TicketStatus.waitingForCustomer);
+                var resolvedCount = ticketList.Count(t => t.Status == TicketStatus.Resolved);
+                var closedCount = ticketList.Count(t => t.Status == TicketStatus.Closed);
 
-            // stub for avg resolution time
-            StatAvgResolution.Text = "— (данные появятся после подключения БД)";
+                StatTotalTickets.Text = ticketList.Count.ToString();
+                StatOpenTickets.Text = openCount.ToString();
+                StatInProgressTickets.Text = inProgressCount.ToString();
+                StatWaitingTickets.Text = waitCount.ToString();
+                StatResolvedTickets.Text = resolvedCount.ToString();
+                StatClosedTickets.Text = closedCount.ToString();
+
+                StatAvgResolution.Text = "— (данные появятся после подключения БД)";
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
         // ====================================================================
         //  CREATE TICKET
         // ====================================================================
 
-        private void CreateTicketBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        private async void CreateTicketBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            var title = TicketTitle.Text?.Trim();
-            var description = TicketDescription.Text?.Trim();
-
-            if (string.IsNullOrEmpty(title))
+            try
             {
-                CreateTicketError.Text = "Введите тему тикета";
-                CreateTicketError.IsVisible = true;
-                return;
+                var title = TicketTitle.Text?.Trim();
+                var description = TicketDescription.Text?.Trim();
+
+                if (string.IsNullOrEmpty(title))
+                {
+                    CreateTicketError.Text = "Введите тему тикета";
+                    CreateTicketError.IsVisible = true;
+                    return;
+                }
+
+                var priority = TicketPriorityCombo.SelectedIndex switch
+                {
+                    0 => TicketPriority.Low,
+                    1 => TicketPriority.Medium,
+                    2 => TicketPriority.High,
+                    3 => TicketPriority.Urgent,
+                    _ => TicketPriority.Medium,
+                };
+
+                using var scope = App.Services.CreateScope();
+                var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                await ticketService.CreateTicketAsync(new CreateTicketDto
+                {
+                    Title = title,
+                    Description = description ?? "",
+                    Priority = priority,
+                    CreatedById = _currentUserId
+                });
+
+                TicketTitle.Text = "";
+                TicketDescription.Text = "";
+                CreateTicketError.IsVisible = false;
+
+                RefreshDashboard();
+                ShowPanel("MyTickets");
             }
-
-            var priority = TicketPriorityCombo.SelectedIndex switch
+            catch (Exception ex)
             {
-                0 => TicketPriority.Low,
-                1 => TicketPriority.Medium,
-                2 => TicketPriority.High,
-                3 => TicketPriority.Urgent,
-                _ => TicketPriority.Medium,
-            };
-
-            var ticket = new InMemoryTicket
-            {
-                Id = Guid.NewGuid(),
-                Title = title,
-                Description = description ?? "",
-                Status = TicketStatus.New,
-                Priority = priority,
-                CreatedAt = DateTime.Now,
-                CreatorName = _currentUsername,
-            };
-            _tickets.Add(ticket);
-
-            // DB stub: сохранение тикета в БД
-            // TODO: раскомментировать после настройки БД
-            // using (var db = new AppDbContext())
-            // {
-            //     db.Tickets.Add(ticket);
-            //     db.SaveChanges();
-            // }
-
-            TicketTitle.Text = "";
-            TicketDescription.Text = "";
-            CreateTicketError.IsVisible = false;
-
-            RefreshDashboard();
-            ShowPanel("MyTickets");
+                ShowDatabaseError(ex);
+            }
         }
 
         // ====================================================================
         //  MY TICKETS
         // ====================================================================
 
-        private void RefreshMyTickets()
+        private async Task RefreshMyTickets()
         {
-            _myTicketItems.Clear();
-
-            // Admin и Agent видят все тикеты, User — только свои
-            var myTickets = _currentRole <= UserRole.Agent
-                ? _tickets.OrderByDescending(t => t.CreatedAt)
-                : _tickets
-                    .Where(t => t.CreatorName == _currentUsername || t.AssigneeName == _currentUsername)
-                    .OrderByDescending(t => t.CreatedAt);
-
-            foreach (var t in myTickets)
+            try
             {
-                _myTicketItems.Add(MapToItem(t));
-            }
+                _myTicketItems.Clear();
 
-            MyTicketsList.ItemsSource = _myTicketItems;
+                IEnumerable<TicketDto> tickets;
+
+                if (_currentRole == UserRole.Admin)
+                {
+                    using var scope = App.Services.CreateScope();
+                    var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                    tickets = await ticketService.GetAllTicketsAsync();
+                }
+                else if (_currentRole == UserRole.Agent)
+                {
+                    using var scope = App.Services.CreateScope();
+                    var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                    var allTickets = await ticketService.GetAllTicketsAsync();
+                    tickets = allTickets.Where(t => t.CreatedById == _currentUserId || t.AssignedToId == _currentUserId);
+                }
+                else
+                {
+                    using var scope = App.Services.CreateScope();
+                    var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                    tickets = await ticketService.GetTicketsByUserIdAsync(_currentUserId);
+                }
+
+                foreach (var t in tickets.OrderByDescending(t => t.CreatedAt))
+                {
+                    _myTicketItems.Add(MapToItem(t));
+                }
+
+                MyTicketsList.ItemsSource = _myTicketItems;
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
         private void MyTicketsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -427,23 +545,33 @@ namespace ApplicationAccountingSystem
         //  QUEUE
         // ====================================================================
 
-        private void RefreshQueue()
+        private async Task RefreshQueue()
         {
-            _queueItems.Clear();
-
-            var openTickets = _tickets
-                .Where(t => t.Status == TicketStatus.New || t.Status == TicketStatus.InProgress)
-                .OrderByDescending(t => t.Priority)
-                .ThenBy(t => t.CreatedAt);
-
-            foreach (var t in openTickets)
+            try
             {
-                var viewItem = MapToItem(t);
-                viewItem.AssignCommand = new RelayCommand(() => AssignTicket(t.Id));
-                _queueItems.Add(viewItem);
-            }
+                _queueItems.Clear();
 
-            QueueList.ItemsSource = _queueItems;
+                using var scope = App.Services.CreateScope();
+                var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                var tickets = await ticketService.GetAllTicketsAsync();
+                var openTickets = tickets
+                    .Where(t => (t.Status == TicketStatus.New || t.Status == TicketStatus.InProgress) && t.AssignedToId == null)
+                    .OrderByDescending(t => t.Priority)
+                    .ThenBy(t => t.CreatedAt);
+
+                foreach (var t in openTickets)
+                {
+                    var viewItem = MapToItem(t);
+                    viewItem.AssignCommand = new RelayCommand(async () => await AssignTicket(t.Id));
+                    _queueItems.Add(viewItem);
+                }
+
+                QueueList.ItemsSource = _queueItems;
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
         private void QueueList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -454,48 +582,53 @@ namespace ApplicationAccountingSystem
             }
         }
 
-        private void AssignTicket(Guid ticketId)
+        private async Task AssignTicket(Guid ticketId)
         {
-            var ticket = _tickets.FirstOrDefault(t => t.Id == ticketId);
-            if (ticket == null) return;
-
-            // Agent не может взять свой собственный тикет
-            if (_currentRole == UserRole.Agent && ticket.CreatorName == _currentUsername)
+            try
             {
-                return;
-            }
+                using var scope = App.Services.CreateScope();
+                var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                var ticket = await ticketService.GetTicketByIdAsync(ticketId);
+                if (ticket == null) return;
 
-            ticket.AssigneeName = _currentUsername;
-            ticket.Status = TicketStatus.InProgress;
-            // DB stub: обновление в БД
-            // TODO: раскомментировать после настройки БД
-            // using (var db = new AppDbContext())
-            // {
-            //     db.Tickets.Update(ticket);
-            //     db.SaveChanges();
-            // }
-            RefreshQueue();
-            RefreshDashboard();
+                if (_currentRole == UserRole.Agent && ticket.CreatedById == _currentUserId)
+                {
+                    return;
+                }
+
+                await ticketService.AssignTicketAsync(ticketId, _currentUserId);
+                await RefreshQueue();
+                RefreshDashboard();
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
         // ====================================================================
         //  USERS
         // ====================================================================
 
-        private void RefreshUsers()
+        private async Task RefreshUsers()
         {
             _allUserItems.Clear();
-            foreach (var u in _users)
+
+            using var scope = App.Services.CreateScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            var users = await userService.GetAllUsersAsync();
+
+            foreach (var u in users.OrderBy(u => u.FullName))
             {
                 var item = new UserListItem
                 {
+                    Id = u.Id,
                     Initials = u.FullName.Length >= 2 ? u.FullName[..2].ToUpper() : u.FullName.ToUpper(),
                     FullName = u.FullName,
                     Role = RoleDisplayName(u.Role),
+                    RoleValue = u.Role,
+                    EditCommand = new RelayCommand(async () => await EditUserRole(u.Id))
                 };
-                // DB stub: редактирование пользователя будет после подключения БД
-                // TODO: раскомментировать после настройки БД
-                // item.EditCommand = new RelayCommand(() => EditUser(u.Username));
                 _allUserItems.Add(item);
             }
 
@@ -602,70 +735,164 @@ namespace ApplicationAccountingSystem
             UsersPageJump.Text = "";
         }
 
+        private async Task EditUserRole(Guid userId)
+        {
+            try
+            {
+                using var scope = App.Services.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                var user = await userService.GetUserByIdAsync(userId);
+                if (user == null) return;
+
+                var selectedRole = await ShowRoleEditor(user);
+                if (selectedRole == null) return;
+
+                await userService.UpdateUserRoleAsync(userId, selectedRole.Value);
+                await RefreshUsers();
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
+        }
+
+        private Task<UserRole?> ShowRoleEditor(UserDto user)
+        {
+            var dialog = new Window
+            {
+                Title = "Редактировать пользователя",
+                Width = 360,
+                Height = 220,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false
+            };
+
+            var adminItem = new ComboBoxItem { Content = "Администратор", Tag = UserRole.Admin };
+            var agentItem = new ComboBoxItem { Content = "Агент поддержки", Tag = UserRole.Agent };
+            var userItem = new ComboBoxItem { Content = "Клиент", Tag = UserRole.User };
+
+            var roleCombo = new ComboBox
+            {
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                Items =
+                {
+                    adminItem,
+                    agentItem,
+                    userItem
+                }
+            };
+
+            roleCombo.SelectedItem = user.Role switch
+            {
+                UserRole.Admin => adminItem,
+                UserRole.Agent => agentItem,
+                _ => userItem
+            };
+
+            var saveButton = new Button { Content = "Сохранить", Classes = { "primary" }, Width = 120 };
+            var cancelButton = new Button { Content = "Отмена", Classes = { "secondary" }, Width = 120 };
+
+            saveButton.Click += (_, _) =>
+            {
+                if (roleCombo.SelectedItem is ComboBoxItem item && item.Tag is UserRole role)
+                {
+                    dialog.Close(role);
+                }
+            };
+
+            cancelButton.Click += (_, _) => dialog.Close(null);
+
+            dialog.Content = new StackPanel
+            {
+                Margin = new Avalonia.Thickness(20),
+                Spacing = 12,
+                Children =
+                {
+                    new TextBlock { Text = user.FullName, FontSize = 18, FontWeight = FontWeight.SemiBold },
+                    new TextBlock { Text = user.Username, Opacity = 0.6 },
+                    roleCombo,
+                    new StackPanel
+                    {
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
+                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                        Spacing = 8,
+                        Children = { cancelButton, saveButton }
+                    }
+                }
+            };
+
+            return dialog.ShowDialog<UserRole?>(this);
+        }
+
         // ====================================================================
         //  TICKET DETAIL
         // ====================================================================
 
-        private void ShowTicketDetail(Guid ticketId)
+        private async void ShowTicketDetail(Guid ticketId)
         {
-            _selectedTicketId = ticketId;
-
-            // hide all content panels
-            DashboardPanel.IsVisible = false;
-            CreateTicketPanel.IsVisible = false;
-            MyTicketsPanel.IsVisible = false;
-            QueuePanel.IsVisible = false;
-            UsersPanel.IsVisible = false;
-            SLAPanel.IsVisible = false;
-            TicketDetailPanel.IsVisible = true;
-
-            var ticket = _tickets.FirstOrDefault(t => t.Id == ticketId);
-            if (ticket == null) return;
-
-            DetailTitle.Text = ticket.Title;
-            DetailStatus.Text = StatusDisplayName(ticket.Status);
-            DetailPriority.Text = PriorityDisplayName(ticket.Priority);
-            DetailCreator.Text = ticket.CreatorName;
-            DetailAssignee.Text = ticket.AssigneeName ?? "—";
-            DetailDescription.Text = ticket.Description;
-
-            // set combo boxes to current ticket values
-            SelectComboByTag(DetailStatusCombo, ticket.Status.ToString());
-            SelectComboByTag(DetailPriorityCombo, ticket.Priority.ToString());
-
-            // show actions panel based on role permissions
-            if (_currentRole <= UserRole.Agent)
+            try
             {
-                // Admin & Agent: can change both status and priority
-                DetailActionsPanel.IsVisible = true;
-                DetailStatusCombo.IsEnabled = true;
-                DetailApplyStatusBtn.IsVisible = true;
-                DetailPriorityCombo.IsEnabled = true;
-                DetailApplyPriorityBtn.IsVisible = true;
-            }
-            else
-            {
-                // Client: can change priority only on their own tickets
-                bool isOwn = ticket.CreatorName == _currentUsername;
-                DetailActionsPanel.IsVisible = isOwn;
-                DetailStatusCombo.IsEnabled = false;
-                DetailApplyStatusBtn.IsVisible = false;
-                DetailPriorityCombo.IsEnabled = isOwn;
-                DetailApplyPriorityBtn.IsVisible = isOwn;
-            }
+                _selectedTicketId = ticketId;
 
-            _detailCommentItems.Clear();
-            var ticketComments = _comments.Where(c => c.TicketId == ticketId).OrderBy(c => c.CreatedAt);
-            foreach (var c in ticketComments)
-            {
-                _detailCommentItems.Add(new CommentListItem
+                DashboardPanel.IsVisible = false;
+                CreateTicketPanel.IsVisible = false;
+                MyTicketsPanel.IsVisible = false;
+                QueuePanel.IsVisible = false;
+                UsersPanel.IsVisible = false;
+                SLAPanel.IsVisible = false;
+                TicketDetailPanel.IsVisible = true;
+
+                using var scope = App.Services.CreateScope();
+                var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                var ticket = await ticketService.GetTicketByIdAsync(ticketId);
+                if (ticket == null) return;
+
+                DetailTitle.Text = ticket.Title;
+                DetailStatus.Text = StatusDisplayName(ticket.Status);
+                DetailPriority.Text = PriorityDisplayName(ticket.Priority);
+                DetailCreator.Text = ticket.CreatorName;
+                DetailAssignee.Text = ticket.AssigneeName ?? "—";
+                DetailDescription.Text = ticket.Description;
+
+                SelectComboByTag(DetailStatusCombo, ticket.Status.ToString());
+                SelectComboByTag(DetailPriorityCombo, ticket.Priority.ToString());
+
+                if (_currentRole <= UserRole.Agent)
                 {
-                    Author = c.Author,
-                    Content = c.Content,
-                    CreatedAt = c.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
-                });
+                    DetailActionsPanel.IsVisible = true;
+                    DetailStatusCombo.IsEnabled = true;
+                    DetailApplyStatusBtn.IsVisible = true;
+                    DetailPriorityCombo.IsEnabled = true;
+                    DetailApplyPriorityBtn.IsVisible = true;
+                }
+                else
+                {
+                    bool isOwn = ticket.CreatedById == _currentUserId;
+                    DetailActionsPanel.IsVisible = isOwn;
+                    DetailStatusCombo.IsEnabled = false;
+                    DetailApplyStatusBtn.IsVisible = false;
+                    DetailPriorityCombo.IsEnabled = isOwn;
+                    DetailApplyPriorityBtn.IsVisible = isOwn;
+                }
+
+                _detailCommentItems.Clear();
+                var commentService = scope.ServiceProvider.GetRequiredService<ICommentService>();
+                var ticketComments = await commentService.GetCommentsByTicketIdAsync(ticketId);
+                foreach (var c in ticketComments)
+                {
+                    _detailCommentItems.Add(new CommentListItem
+                    {
+                        Author = c.AuthorName,
+                        Content = c.Content,
+                        CreatedAt = c.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
+                    });
+                }
+                DetailComments.ItemsSource = _detailCommentItems;
             }
-            DetailComments.ItemsSource = _detailCommentItems;
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
         private void DetailBackBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -673,44 +900,50 @@ namespace ApplicationAccountingSystem
             ShowPanel(_lastPanel);
         }
 
-        private void DetailApplyStatusBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        private async void DetailApplyStatusBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            if (_selectedTicketId == Guid.Empty) return;
-            if (DetailStatusCombo.SelectedItem is not ComboBoxItem item) return;
+            try
+            {
+                if (_selectedTicketId == Guid.Empty) return;
+                if (DetailStatusCombo.SelectedItem is not ComboBoxItem item) return;
 
-            var newStatus = item.Tag?.ToString();
-            if (newStatus == null) return;
+                var newStatus = item.Tag?.ToString();
+                if (newStatus == null) return;
 
-            var ticket = _tickets.FirstOrDefault(t => t.Id == _selectedTicketId);
-            if (ticket == null) return;
+                if (!Enum.TryParse<TicketStatus>(newStatus, out var parsed)) return;
+                using var scope = App.Services.CreateScope();
+                var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                await ticketService.ChangeStatusAsync(_selectedTicketId, parsed);
 
-            if (!Enum.TryParse<TicketStatus>(newStatus, out var parsed)) return;
-            ticket.Status = parsed;
-
-            // DB stub
-            // TODO: раскомментировать после настройки БД
-
-            ShowTicketDetail(_selectedTicketId);
+                ShowTicketDetail(_selectedTicketId);
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
-        private void DetailApplyPriorityBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        private async void DetailApplyPriorityBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            if (_selectedTicketId == Guid.Empty) return;
-            if (DetailPriorityCombo.SelectedItem is not ComboBoxItem item) return;
+            try
+            {
+                if (_selectedTicketId == Guid.Empty) return;
+                if (DetailPriorityCombo.SelectedItem is not ComboBoxItem item) return;
 
-            var newPriority = item.Tag?.ToString();
-            if (newPriority == null) return;
+                var newPriority = item.Tag?.ToString();
+                if (newPriority == null) return;
 
-            var ticket = _tickets.FirstOrDefault(t => t.Id == _selectedTicketId);
-            if (ticket == null) return;
+                if (!Enum.TryParse<TicketPriority>(newPriority, out var parsed)) return;
+                using var scope = App.Services.CreateScope();
+                var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                await ticketService.ChangePriorityAsync(_selectedTicketId, parsed);
 
-            if (!Enum.TryParse<TicketPriority>(newPriority, out var parsed)) return;
-            ticket.Priority = parsed;
-
-            // DB stub
-            // TODO: раскомментировать после настройки БД
-
-            ShowTicketDetail(_selectedTicketId);
+                ShowTicketDetail(_selectedTicketId);
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
         private static void SelectComboByTag(ComboBox combo, string tag)
@@ -725,31 +958,30 @@ namespace ApplicationAccountingSystem
             }
         }
 
-        private void DetailAddCommentBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        private async void DetailAddCommentBtn_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            var content = DetailNewComment.Text?.Trim();
-            if (string.IsNullOrEmpty(content) || _selectedTicketId == Guid.Empty) return;
-
-            _comments.Add(new InMemoryComment
+            try
             {
-                TicketId = _selectedTicketId,
-                Author = _currentUsername,
-                Content = content,
-                CreatedAt = DateTime.Now,
-            });
+                var content = DetailNewComment.Text?.Trim();
+                if (string.IsNullOrEmpty(content) || _selectedTicketId == Guid.Empty) return;
 
-            // DB stub: сохранение комментария в БД
-            // TODO: раскомментировать после настройки БД
-            // using (var db = new AppDbContext())
-            // {
-            //     db.Comments.Add(comment);
-            //     db.SaveChanges();
-            // }
+                using var scope = App.Services.CreateScope();
+                var commentService = scope.ServiceProvider.GetRequiredService<ICommentService>();
+                await commentService.AddCommentAsync(new CreateCommentDto
+                {
+                    TicketId = _selectedTicketId,
+                    UserId = _currentUserId,
+                    Content = content,
+                    IsInternal = false
+                });
 
-            DetailNewComment.Text = "";
-
-            // refresh detail view
-            ShowTicketDetail(_selectedTicketId);
+                DetailNewComment.Text = "";
+                ShowTicketDetail(_selectedTicketId);
+            }
+            catch (Exception ex)
+            {
+                ShowDatabaseError(ex);
+            }
         }
 
         // ====================================================================
@@ -760,6 +992,19 @@ namespace ApplicationAccountingSystem
         {
             LoginError.Text = message;
             LoginError.IsVisible = true;
+        }
+
+        private void ShowDatabaseError(Exception ex)
+        {
+            var message = $"Ошибка базы данных: {ex.Message}";
+
+            if (LoginPanel.IsVisible)
+            {
+                ShowLoginError(message);
+                return;
+            }
+
+            UserInfoBar.Text = message;
         }
 
         private static string RoleDisplayName(UserRole role) => role switch
@@ -797,7 +1042,7 @@ namespace ApplicationAccountingSystem
             _ => Color.Parse("#888888"),
         };
 
-        private TicketListItem MapToItem(InMemoryTicket t) => new()
+        private TicketListItem MapToItem(TicketDto t) => new()
         {
             Id = t.Id,
             Title = t.Title,
@@ -809,36 +1054,12 @@ namespace ApplicationAccountingSystem
         };
     }
 
-    // ========================================================================
-    //  IN-MEMORY MODELS (stubs until DB is connected)
-    // ========================================================================
-
-    internal class InMemoryUser
-    {
-        public string Username { get; set; } = "";
-        public string Password { get; set; } = "";
-        public string FullName { get; set; } = "";
-        public UserRole Role { get; set; } = UserRole.User;
-    }
-
-    internal class InMemoryTicket
+    internal class CurrentUserSession
     {
         public Guid Id { get; set; }
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public TicketStatus Status { get; set; } = TicketStatus.New;
-        public TicketPriority Priority { get; set; } = TicketPriority.Medium;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public string CreatorName { get; set; } = "";
-        public string? AssigneeName { get; set; }
-    }
-
-    internal class InMemoryComment
-    {
-        public Guid TicketId { get; set; }
-        public string Author { get; set; } = "";
-        public string Content { get; set; } = "";
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string Username { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public UserRole Role { get; set; } = UserRole.User;
     }
 
     // ========================================================================
@@ -859,9 +1080,11 @@ namespace ApplicationAccountingSystem
 
     internal class UserListItem
     {
+        public Guid Id { get; set; }
         public string Initials { get; set; } = "";
         public string FullName { get; set; } = "";
         public string Role { get; set; } = "";
+        public UserRole RoleValue { get; set; }
         public RelayCommand? EditCommand { get; set; }
     }
 
@@ -904,24 +1127,4 @@ namespace ApplicationAccountingSystem
         public void Execute(object? parameter) => _execute();
     }
 
-    // ========================================================================
-    //  DB CONTEXT STUB
-    //  TODO: раскомментировать после установки PostgreSQL и настройки подключения
-    // ========================================================================
-    // using Microsoft.EntityFrameworkCore;
-    //
-    // public class AppDbContext : DbContext
-    // {
-    //     public DbSet<User> Users { get; set; }
-    //     public DbSet<Tickets> Tickets { get; set; }
-    //     public DbSet<Comment> Comments { get; set; }
-    //     public DbSet<SLAPolicy> SLAPolicies { get; set; }
-    //     public DbSet<TicketHistory> TicketHistories { get; set; }
-    //     public DbSet<Attachment> Attachments { get; set; }
-    //
-    //     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    //     {
-    //         optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=helpdesk;Username=user;Password=pass");
-    //     }
-    // }
 }

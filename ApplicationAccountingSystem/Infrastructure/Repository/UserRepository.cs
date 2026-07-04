@@ -19,7 +19,7 @@ namespace ApplicationAccountingSystem.Infrastructure.Repository
         {
             _context = context;
         }
-        public async Task<User?> CreateUserAsync(User user)
+        public async Task<User> CreateUserAsync(User user)
         {
             _context.Users.Add(user);
             await _context.SaveChangesAsync();

@@ -57,6 +57,21 @@ namespace ApplicationAccountingSystem.Application.Services
             return users.Select(MapToDto);
         }
 
+        public async Task<UserDto?> UpdateUserRoleAsync(Guid userId, UserRole role)
+        {
+            var user = await _userRepository.GetUserByIdAsync(userId);
+
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.Role = role;
+            await _userRepository.UpdateUserAsync(user);
+
+            return MapToDto(user);
+        }
+
         public async Task DeactivateUserAsync(Guid userId)
         {
             await _userRepository.DeactivateUserAsync(userId);

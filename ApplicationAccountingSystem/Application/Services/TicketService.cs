@@ -12,10 +12,12 @@ namespace ApplicationAccountingSystem.Application.Services
     public class TicketService : ITicketService
     {
         private readonly ITicketRepository _ticketRepository;
+        private readonly IUserRepository _userRepository;
 
-        public TicketService(ITicketRepository ticketRepository)
+        public TicketService(ITicketRepository ticketRepository, IUserRepository userRepository)
         {
             _ticketRepository = ticketRepository;
+            _userRepository = userRepository;
         }
 
         public async Task<TicketDto> CreateTicketAsync(CreateTicketDto dto)
@@ -34,7 +36,7 @@ namespace ApplicationAccountingSystem.Application.Services
 
             var createdTicket = await _ticketRepository.CreateTicketAsync(ticket);
 
-            return MapToDto(createdTicket);
+            return await MapToDtoAsync(createdTicket);
         }
 
         public async Task<TicketDto?> GetTicketByIdAsync(Guid ticketId)
@@ -46,34 +48,56 @@ namespace ApplicationAccountingSystem.Application.Services
                 return null;
             }
 
-            return MapToDto(ticket);
+            return await MapToDtoAsync(ticket);
         }
 
         public async Task<IEnumerable<TicketDto>> GetAllTicketsAsync()
         {
             var tickets = await _ticketRepository.GetAllTicketsAsync();
 
-            return tickets.Select(MapToDto);
+            var result = new List<TicketDto>();
+
+            foreach (var ticket in tickets)
+            {
+                result.Add(await MapToDtoAsync(ticket));
+            }
+
+            return result;
         }
 
         public async Task<IEnumerable<TicketDto>> GetTicketsByUserIdAsync(Guid userId)
         {
             var tickets = await _ticketRepository.GetTicketsByUserIdAsync(userId);
 
-            return tickets.Select(MapToDto);
+            var result = new List<TicketDto>();
+
+            foreach (var ticket in tickets)
+            {
+                result.Add(await MapToDtoAsync(ticket));
+            }
+
+            return result;
         }
 
-        private static TicketDto MapToDto(Tickets ticket)
+        private async Task<TicketDto> MapToDtoAsync(Tickets ticket)
         {
+            var creator = await _userRepository.GetUserByIdAsync(ticket.CreatedById);
+            var assignee = ticket.AssignedToId.HasValue
+                ? await _userRepository.GetUserByIdAsync(ticket.AssignedToId.Value)
+                : null;
+
             return new TicketDto
             {
                 Id = ticket.Id,
                 Title = ticket.Title,
+                Description = ticket.Description,
                 Status = ticket.Status,
                 Priority = ticket.Priority,
                 CreatedAt = ticket.CreatedAt,
                 CreatedById = ticket.CreatedById,
-                AssignedToId = ticket.AssignedToId
+                AssignedToId = ticket.AssignedToId,
+                CreatorName = creator?.FullName ?? ticket.CreatedById.ToString(),
+                AssigneeName = assignee?.FullName
             };
         }
         public async Task<TicketDto?> AssignTicketAsync(Guid ticketId, Guid agentId)
@@ -82,7 +106,7 @@ namespace ApplicationAccountingSystem.Application.Services
             if (ticket == null) { return null; }
             ticket.AssignTo(agentId);
             await _ticketRepository.UpdateTicketAsync(ticket);
-            return MapToDto(ticket);
+            return await MapToDtoAsync(ticket);
         }
         public async Task<TicketDto?> ChangeStatusAsync(Guid ticketId, TicketStatus status)
         {
@@ -90,7 +114,7 @@ namespace ApplicationAccountingSystem.Application.Services
             if (ticket == null) { return null; }
             ticket.ChangeStatus(status);
             await _ticketRepository.UpdateTicketAsync(ticket);
-            return MapToDto(ticket);
+            return await MapToDtoAsync(ticket);
         }
         public async Task<TicketDto?> ChangePriorityAsync(Guid ticketId, TicketPriority priority)
         {
@@ -98,7 +122,7 @@ namespace ApplicationAccountingSystem.Application.Services
             if (ticket == null) { return null; }
             ticket.ChangePriority(priority);
             await _ticketRepository.UpdateTicketAsync(ticket);
-            return MapToDto(ticket);
+            return await MapToDtoAsync(ticket);
         }
     }
 }

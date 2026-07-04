@@ -19,6 +19,20 @@ namespace ApplicationAccountingSystem.Application.Services
 
         public async Task<UserDto> RegisterAsync(RegisterUserDto dto)
         {
+            var existingUser = await _userRepository.GetUserByUsernameAsync(dto.Username);
+
+            if (existingUser != null)
+            {
+                throw new InvalidOperationException("Пользователь уже существует");
+            }
+
+            var existingEmail = await _userRepository.GetUserByEmailAsync(dto.Email);
+
+            if (existingEmail != null)
+            {
+                throw new InvalidOperationException("Email уже используется");
+            }
+
             var user = new User
             {
                 Id = Guid.NewGuid(),

@@ -16,6 +16,8 @@ namespace ApplicationAccountingSystem.Application.Interface
 
         Task<IEnumerable<UserDto>> GetUsersByRoleAsync(UserRole role);
 
+        Task<UserDto?> UpdateUserRoleAsync(Guid userId, UserRole role);
+
         Task DeactivateUserAsync(Guid userId);
     }
 }

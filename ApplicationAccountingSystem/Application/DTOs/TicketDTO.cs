@@ -6,11 +6,14 @@ namespace ApplicationAccountingSystem.Application.DTOs
     public class TicketDto
     {
         public Guid Id { get; set; }
-        public string Title { get; set; }
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
         public TicketStatus Status { get; set; }
         public TicketPriority Priority { get; set; }
         public DateTime CreatedAt { get; set; }
         public Guid CreatedById { get; set; }
         public Guid? AssignedToId { get; set; }
+        public string CreatorName { get; set; } = "";
+        public string? AssigneeName { get; set; }
     }
 }

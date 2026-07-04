@@ -46,9 +46,9 @@ namespace ApplicationAccountingSystem.Infrastructure.Repository
         }
         public async Task DeleteCommentAsync(Guid commentId)
         {
-            var command = await _context.Comments.FindAsync($"{commentId}");
-            if (command == null) return;
-            _context.Comments.Remove(command);
+            var comment = await _context.Comments.FindAsync(commentId);
+            if (comment == null) return;
+            _context.Comments.Remove(comment);
             await _context.SaveChangesAsync();
         }
     }

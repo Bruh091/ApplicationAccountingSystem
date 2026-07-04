@@ -6,13 +6,15 @@ namespace ApplicationAccountingSystem.Application.DTOs
     {
         public Guid Id { get; set; }
 
-        public string Content { get; set; }
+        public string Content { get; set; } = "";
 
         public DateTime CreatedAt { get; set; }
 
         public bool IsInternal { get; set; }
 
         public Guid UserId { get; set; }
+
+        public string AuthorName { get; set; } = "";
 
         public Guid TicketId { get; set; }
     }

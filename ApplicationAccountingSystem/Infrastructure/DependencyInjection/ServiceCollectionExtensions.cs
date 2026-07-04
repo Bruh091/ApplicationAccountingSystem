@@ -20,6 +20,7 @@ namespace ApplicationAccountingSystem.Infrastructure.DependencyInjection
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ITicketService, TicketService>();
             services.AddScoped<ICommentService, CommentService>();
+            services.AddDbContext<AppDbContext>();
             
             return services;
         }

@@ -27,7 +27,7 @@ namespace ApplicationAccountingSystem.Infrastructure.Repository
             await _context.SaveChangesAsync();
             return tickets;
         }
-        public async Task<Tickets> GetTicketByIdAsync(Guid ticketId)
+        public async Task<Tickets?> GetTicketByIdAsync(Guid ticketId)
         {
             return await _context.Tickets.FindAsync(ticketId);
         }

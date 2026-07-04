@@ -42,7 +42,7 @@ namespace ApplicationAccountingSystem
             }
             ThemeChanged?.Invoke(null, IsLightTheme);
         }
-        public static ServiceProvider Services {get; private set;}
+        public static ServiceProvider Services {get; private set;} = null!;
 
     }
 }
